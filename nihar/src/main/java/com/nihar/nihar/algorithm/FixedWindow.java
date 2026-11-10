@@ -6,8 +6,6 @@ import com.nihar.nihar.managers.*;
 import com.nihar.nihar.interfaces.*;
 
 /*Concept: Allow at most N requests within a fixed time interval. */
-
-@Component
 public class FixedWindow extends RateLimitingAlgorithms {
 
     public FixedWindow(

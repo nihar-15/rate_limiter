@@ -8,5 +8,6 @@ import lombok.Setter;
 public class Request{
     String apiKey ; 
     String ipAddress;
-    String userId; 
+    String userId;
+    Path path; 
 }

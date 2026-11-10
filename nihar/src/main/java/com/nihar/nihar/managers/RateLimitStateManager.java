@@ -1,29 +1,32 @@
-
 package com.nihar.nihar.managers;
 
 import com.nihar.nihar.entity.UserStatus;
+import com.nihar.nihar.enums.*;
+
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.TimeUnit;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 
 @Component
 public class RateLimitStateManager {
 
     private final StringRedisTemplate redisTemplate;
-
     private final ObjectMapper objectMapper;
 
-    public RateLimitStateManager(   StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
-       this.redisTemplate = redisTemplate;
-       this.objectMapper = objectMapper;
-   }
+    public RateLimitStateManager(
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper) {
+
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     private String getKey(String userId, String component) {
         return "ratelimit:" + userId + ":" + component;
     }
 
-    // Fetch existing state
     public UserStatus getUserStatus(
             String userId, String component) {
 
@@ -38,11 +41,9 @@ public class RateLimitStateManager {
             return status;
         }
 
-        // Deserialize Redis data
         return deserialize(data);
     }
 
-    // Save updated state
     public void updateState(
             String userId,
             String component,
@@ -51,24 +52,24 @@ public class RateLimitStateManager {
         String key = getKey(userId, component);
 
         redisTemplate.opsForValue().set(
-            key,
-            serialize(status)
+                key,
+                serialize(status)
         );
     }
 
     private String serialize(UserStatus status) {
-    try {
-        return objectMapper.writeValueAsString(status);
-    } catch (JsonProcessingException e) {
-        throw new RuntimeException(e);
+        try {
+            return objectMapper.writeValueAsString(status);
+        } catch (JacksonException e) {
+            throw new RuntimeException("Serialization failed", e);
+        }
     }
-}
 
-    private UserStatus deserialize(String data) { 
-    try {
-        return objectMapper.readValue(data, UserStatus.class);
-    } catch (JsonProcessingException e) {
-        throw new RuntimeException(e);
+    private UserStatus deserialize(String data) {
+        try {
+            return objectMapper.readValue(data, UserStatus.class);
+        } catch (JacksonException e) {
+            throw new RuntimeException("Deserialization failed", e);
+        }
     }
-}
 }

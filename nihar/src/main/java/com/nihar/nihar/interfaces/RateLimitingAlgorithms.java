@@ -24,7 +24,7 @@ public abstract class RateLimitingAlgorithms {
     public final boolean isAllowed(User user, Request request) {
 
         // Step 1: Resolve applicable rule
-        Rule rule = ruleManager.getApplicableRule(user, request);
+        Rule rule = ruleManager.getApplicableRule(user, request.getPath());
 
         if (rule == null) {
             throw new IllegalStateException(
@@ -35,7 +35,7 @@ public abstract class RateLimitingAlgorithms {
         String component = rule.getComponent();
 
         // Step 2: Check user restrictions
-        if (userManager.isBlocked(user.getUserId())) {
+        if (userManager.isBlocked(user.getUserId() , component)) {
             return false;
         }
 

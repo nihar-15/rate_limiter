@@ -1,3 +1,5 @@
+package com.nihar.nihar.enums;
+
 public enum RateLimitType {
     FIXED_WINDOW,
     SLIDING_WINDOW,

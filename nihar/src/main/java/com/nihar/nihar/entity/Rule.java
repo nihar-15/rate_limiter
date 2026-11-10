@@ -1,9 +1,13 @@
+package com.nihar.nihar.entity;
 
-@Component 
-@Setter
+import lombok.Getter;
+import lombok.Setter;
+
 @Getter
-class Rule{
-    String component ; // represents the component the rate limiting will be applied for example code run , code submit , login from dif devices 
-    int limitCount; 
-    String defaultPolicy; 
+@Setter
+public class Rule {
+    private String component;
+    private int limitCount;
+    private int windowInSeconds;
+    private RateLimitType algorithmType;
 }

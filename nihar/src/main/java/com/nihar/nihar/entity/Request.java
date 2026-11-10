@@ -1,8 +1,11 @@
+package com.nihar.nihar.entity;
 
-@Component
+import lombok.Getter;
+import lombok.Setter;
+
 @Getter
 @Setter
-class Request{
+public class Request{
     String apiKey ; 
     String ipAddress;
     String userId; 

@@ -3,6 +3,7 @@ package com.nihar.nihar.managers;
 
 import com.nihar.nihar.entity.*;
 import java.util.*;
+import org.springframework.stereotype.Component;
 
 
 /*
@@ -21,6 +22,7 @@ PREMIUM + CODE_SUBMIT → Rule(50, 60, SLIDING_WINDOW)
 
 */
 
+@Component
 public class RuleManager {
 
     // Maps HTTP path + method to component

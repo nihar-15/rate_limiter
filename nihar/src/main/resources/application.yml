@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: rate-limiter
+
+  # The playground profile. Running without an explicit profile gives you an
+  # open Swagger UI, the seeded demo rules and the state inspection APIs.
+  # Start with --spring.profiles.active=prod (or any other profile) to get the
+  # locked down security chain and no state inspection.
+  profiles:
+    default: local
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+  api-docs:
+    path: /v3/api-docs
+
+# Secure by default: per-user state inspection and the bulk reset are off
+# unless a profile explicitly turns them on.
+ratelimiter:
+  defaults:
+    user-id: anonymous
+    plan: FREE
+  admin:
+    state-inspection-enabled: false
+    allow-reset-all: false
+
+logging:
+  level:
+    com.nihar.nihar: INFO

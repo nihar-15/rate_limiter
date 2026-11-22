@@ -1,0 +1,69 @@
+# Local playground profile.
+#
+# Everything here exists so that `./gradlew bootRun` gives a working demo out of
+# the box: open Swagger, state inspection on, and a seed set of rules covering
+# all three algorithms and two subscription plans.
+#
+# These rules are only a starting point. Change them at runtime through
+# POST/PUT /api/admin/rules - no restart and no code change required.
+
+ratelimiter:
+  admin:
+    state-inspection-enabled: true
+    allow-reset-all: true
+
+  rules:
+    # CODE_RUN - the same API, two plans, two algorithms.
+    - component: CODE_RUN
+      http-method: POST
+      api-path: /api/demo/code-run
+      plan: FREE
+      limit: 5
+      window-in-seconds: 60
+      algorithm: FIXED_WINDOW
+
+    - component: CODE_RUN
+      http-method: POST
+      api-path: /api/demo/code-run
+      plan: PREMIUM
+      limit: 20
+      window-in-seconds: 60
+      algorithm: TOKEN_BUCKET
+
+    # CODE_SUBMIT - a tighter sliding window.
+    - component: CODE_SUBMIT
+      http-method: POST
+      api-path: /api/demo/code-submit
+      plan: FREE
+      limit: 3
+      window-in-seconds: 30
+      algorithm: SLIDING_WINDOW
+
+    - component: CODE_SUBMIT
+      http-method: POST
+      api-path: /api/demo/code-submit
+      plan: PREMIUM
+      limit: 15
+      window-in-seconds: 30
+      algorithm: SLIDING_WINDOW
+
+    # STATUS_CHECK - the status endpoint is rate limited too.
+    - component: STATUS_CHECK
+      http-method: GET
+      api-path: /api/demo/status
+      plan: FREE
+      limit: 10
+      window-in-seconds: 60
+      algorithm: TOKEN_BUCKET
+
+    - component: STATUS_CHECK
+      http-method: GET
+      api-path: /api/demo/status
+      plan: PREMIUM
+      limit: 60
+      window-in-seconds: 60
+      algorithm: TOKEN_BUCKET
+
+logging:
+  level:
+    com.nihar.nihar: DEBUG

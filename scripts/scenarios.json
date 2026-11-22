@@ -1,0 +1,274 @@
+{
+  "_comment": [
+    "Named experiments for run_scenario.py. Everything is data: add your own",
+    "scenario by copying a block, no Python changes needed.",
+    "",
+    "A scenario has:",
+    "  description : what the experiment demonstrates",
+    "  rules       : rules PUT into the running app before the phases run",
+    "  reset       : [[userId, component], ...] state keys cleared before the run",
+    "  expect      : free text printed at the end, what you should observe",
+    "  phases      : the traffic to generate, executed in order",
+    "",
+    "A phase has:",
+    "  name     : printed as a header",
+    "  sleep    : seconds to wait BEFORE the phase (optional)",
+    "  url      : endpoint path, appended to --base-url",
+    "  user     : X-User-Id          (or users: [..] to spread across users)",
+    "  plan     : X-Subscription-Plan",
+    "  requests : how many to send",
+    "  delay    : seconds between requests (sequential mode only)",
+    "  workers  : >1 fires them concurrently"
+  ],
+
+  "sequential-limit": {
+    "description": "Sequential requests exceeding a fixed window limit.",
+    "rules": [
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "FREE", "limit": 5, "windowInSeconds": 60, "algorithm": "FIXED_WINDOW"
+      }
+    ],
+    "reset": [["user-101", "CODE_RUN"]],
+    "phases": [
+      {
+        "name": "8 sequential requests against a limit of 5",
+        "url": "/api/demo/code-run", "user": "user-101", "plan": "FREE",
+        "requests": 8, "delay": 0.05
+      }
+    ],
+    "expect": "The first 5 are allowed, the remaining 3 return HTTP 429."
+  },
+
+  "window-expiry": {
+    "description": "Requests resume once the fixed window expires.",
+    "rules": [
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "FREE", "limit": 3, "windowInSeconds": 5, "algorithm": "FIXED_WINDOW"
+      }
+    ],
+    "reset": [["user-101", "CODE_RUN"]],
+    "phases": [
+      {
+        "name": "Exhaust the 3 request window",
+        "url": "/api/demo/code-run", "user": "user-101", "plan": "FREE",
+        "requests": 5, "delay": 0.05
+      },
+      {
+        "name": "Wait for the window to roll over, then retry",
+        "sleep": 6,
+        "url": "/api/demo/code-run", "user": "user-101", "plan": "FREE",
+        "requests": 3, "delay": 0.05
+      }
+    ],
+    "expect": "Phase 1: 3 allowed then 2 limited. Phase 2: all 3 allowed again."
+  },
+
+  "multiple-users": {
+    "description": "Independent users each get their own quota.",
+    "rules": [
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "FREE", "limit": 3, "windowInSeconds": 60, "algorithm": "FIXED_WINDOW"
+      }
+    ],
+    "reset": [["user-a", "CODE_RUN"], ["user-b", "CODE_RUN"], ["user-c", "CODE_RUN"]],
+    "phases": [
+      {
+        "name": "user-a exhausts its quota",
+        "url": "/api/demo/code-run", "user": "user-a", "plan": "FREE",
+        "requests": 5, "delay": 0.05
+      },
+      {
+        "name": "user-b is unaffected",
+        "url": "/api/demo/code-run", "user": "user-b", "plan": "FREE",
+        "requests": 3, "delay": 0.05
+      },
+      {
+        "name": "user-c is unaffected",
+        "url": "/api/demo/code-run", "user": "user-c", "plan": "FREE",
+        "requests": 3, "delay": 0.05
+      }
+    ],
+    "expect": "user-a: 3 allowed + 2 limited. user-b and user-c: 3 allowed each."
+  },
+
+  "free-vs-premium": {
+    "description": "The same API, two plans, two algorithms and two limits.",
+    "rules": [
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "FREE", "limit": 5, "windowInSeconds": 60, "algorithm": "FIXED_WINDOW"
+      },
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "PREMIUM", "limit": 20, "windowInSeconds": 60, "algorithm": "TOKEN_BUCKET"
+      }
+    ],
+    "reset": [["free-user", "CODE_RUN"], ["premium-user", "CODE_RUN"]],
+    "phases": [
+      {
+        "name": "FREE user, limit 5, FIXED_WINDOW",
+        "url": "/api/demo/code-run", "user": "free-user", "plan": "FREE",
+        "requests": 10, "delay": 0.05
+      },
+      {
+        "name": "PREMIUM user, limit 20, TOKEN_BUCKET",
+        "url": "/api/demo/code-run", "user": "premium-user", "plan": "PREMIUM",
+        "requests": 10, "delay": 0.05
+      }
+    ],
+    "expect": "FREE: 5 allowed, 5 limited. PREMIUM: all 10 allowed."
+  },
+
+  "multi-component": {
+    "description": "Two components with different rules do not share state.",
+    "rules": [
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "FREE", "limit": 5, "windowInSeconds": 60, "algorithm": "FIXED_WINDOW"
+      },
+      {
+        "component": "CODE_SUBMIT", "httpMethod": "POST", "apiPath": "/api/demo/code-submit",
+        "plan": "FREE", "limit": 3, "windowInSeconds": 30, "algorithm": "SLIDING_WINDOW"
+      }
+    ],
+    "reset": [["user-101", "CODE_RUN"], ["user-101", "CODE_SUBMIT"]],
+    "phases": [
+      {
+        "name": "CODE_RUN: fixed window of 5 per 60s",
+        "url": "/api/demo/code-run", "user": "user-101", "plan": "FREE",
+        "requests": 7, "delay": 0.05
+      },
+      {
+        "name": "CODE_SUBMIT: sliding window of 3 per 30s, same user",
+        "url": "/api/demo/code-submit", "user": "user-101", "plan": "FREE",
+        "requests": 5, "delay": 0.05
+      }
+    ],
+    "expect": "CODE_RUN: 5 allowed, 2 limited. CODE_SUBMIT: 3 allowed, 2 limited."
+  },
+
+  "concurrent-same-user": {
+    "description": "The atomicity check: a burst from one user must not exceed the limit.",
+    "rules": [
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "FREE", "limit": 10, "windowInSeconds": 60, "algorithm": "FIXED_WINDOW"
+      }
+    ],
+    "reset": [["burst-user", "CODE_RUN"]],
+    "phases": [
+      {
+        "name": "100 simultaneous requests from one user, limit 10",
+        "url": "/api/demo/code-run", "user": "burst-user", "plan": "FREE",
+        "requests": 100, "workers": 50
+      }
+    ],
+    "expect": "Exactly 10 allowed and 90 limited. Any other split means the decision is not atomic."
+  },
+
+  "concurrent-different-users": {
+    "description": "Concurrent traffic from many users; each keeps its own quota.",
+    "rules": [
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "FREE", "limit": 2, "windowInSeconds": 60, "algorithm": "FIXED_WINDOW"
+      }
+    ],
+    "reset": [],
+    "phases": [
+      {
+        "name": "10 users x 5 concurrent requests, limit 2 each",
+        "url": "/api/demo/code-run", "plan": "FREE",
+        "users": ["mu-0", "mu-1", "mu-2", "mu-3", "mu-4",
+                  "mu-5", "mu-6", "mu-7", "mu-8", "mu-9"],
+        "resetUsers": true,
+        "requests": 50, "workers": 25
+      }
+    ],
+    "expect": "20 allowed in total (2 per user) and 30 limited."
+  },
+
+  "token-refill": {
+    "description": "A drained token bucket refills continuously over the window.",
+    "rules": [
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "PREMIUM", "limit": 6, "windowInSeconds": 6, "algorithm": "TOKEN_BUCKET"
+      }
+    ],
+    "reset": [["refill-user", "CODE_RUN"]],
+    "phases": [
+      {
+        "name": "Drain the bucket (capacity 6, refills 1 token/s)",
+        "url": "/api/demo/code-run", "user": "refill-user", "plan": "PREMIUM",
+        "requests": 8, "delay": 0.02
+      },
+      {
+        "name": "After 3s, about 3 tokens have accrued",
+        "sleep": 3,
+        "url": "/api/demo/code-run", "user": "refill-user", "plan": "PREMIUM",
+        "requests": 5, "delay": 0.02
+      },
+      {
+        "name": "After another 6s the bucket is full again",
+        "sleep": 6,
+        "url": "/api/demo/code-run", "user": "refill-user", "plan": "PREMIUM",
+        "requests": 8, "delay": 0.02
+      }
+    ],
+    "expect": "Phase 1: 6 allowed, 2 limited. Phase 2: about 3 allowed. Phase 3: 6 allowed, 2 limited."
+  },
+
+  "sliding-vs-fixed": {
+    "description": "The fixed window boundary burst, and how a sliding window prevents it.",
+    "rules": [
+      {
+        "component": "CODE_RUN", "httpMethod": "POST", "apiPath": "/api/demo/code-run",
+        "plan": "FREE", "limit": 5, "windowInSeconds": 10, "algorithm": "FIXED_WINDOW"
+      },
+      {
+        "component": "CODE_SUBMIT", "httpMethod": "POST", "apiPath": "/api/demo/code-submit",
+        "plan": "FREE", "limit": 5, "windowInSeconds": 10, "algorithm": "SLIDING_WINDOW"
+      }
+    ],
+    "reset": [["boundary-user", "CODE_RUN"], ["boundary-user", "CODE_SUBMIT"]],
+    "phases": [
+      {
+        "name": "t=0s  one request each, opening the fixed window",
+        "url": "/api/demo/code-run", "user": "boundary-user", "plan": "FREE",
+        "requests": 1
+      },
+      {
+        "name": "t=0s  same for the sliding window endpoint",
+        "url": "/api/demo/code-submit", "user": "boundary-user", "plan": "FREE",
+        "requests": 1
+      },
+      {
+        "name": "t=9s  4 more each, filling both to the limit of 5",
+        "sleep": 9,
+        "url": "/api/demo/code-run", "user": "boundary-user", "plan": "FREE",
+        "requests": 4, "delay": 0.02
+      },
+      {
+        "name": "t=9s  sliding window filled to 5 as well",
+        "url": "/api/demo/code-submit", "user": "boundary-user", "plan": "FREE",
+        "requests": 4, "delay": 0.02
+      },
+      {
+        "name": "t=11s FIXED_WINDOW just crossed its boundary - 5 more",
+        "sleep": 2,
+        "url": "/api/demo/code-run", "user": "boundary-user", "plan": "FREE",
+        "requests": 5, "delay": 0.02
+      },
+      {
+        "name": "t=11s SLIDING_WINDOW, identical traffic",
+        "url": "/api/demo/code-submit", "user": "boundary-user", "plan": "FREE",
+        "requests": 5, "delay": 0.02
+      }
+    ],
+    "expect": "FIXED_WINDOW allows all 5 at t=11s because the counter reset as a block - 9 requests inside ~2 seconds under a '5 per 10s' limit. SLIDING_WINDOW allows only 1, because the four requests from t=9s are still inside its window. Totals: 10 allowed for fixed, 6 for sliding."
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "url": "http://localhost:8080/api/demo/code-run",
+  "user": "user-201",
+  "plan": "PREMIUM",
+  "requests": 60,
+  "delay": 0,
+  "workers": 30
+}

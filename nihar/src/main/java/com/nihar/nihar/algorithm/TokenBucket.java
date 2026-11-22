@@ -3,8 +3,18 @@ package com.nihar.nihar.algorithm;
 import com.nihar.nihar.entity.*;
 import com.nihar.nihar.managers.*;
 import com.nihar.nihar.interfaces.*;
+import com.nihar.nihar.model.RateLimitVerdict;
+
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.script.RedisScript;
+
+import java.util.List;
 
 public class TokenBucket extends RateLimitingAlgorithms {
+
+    /** Atomic Redis-side counterpart of {@link #checkLimit}. */
+    private static final RedisScript<List> SCRIPT = RedisScript.of(
+            new ClassPathResource("scripts/token_bucket.lua"), List.class);
 
     public TokenBucket(
             RuleManager ruleManager,
@@ -12,6 +22,18 @@ public class TokenBucket extends RateLimitingAlgorithms {
             RateLimitStateManager stateManager) {
 
         super(ruleManager, userManager, stateManager);
+    }
+
+    @Override
+    protected RateLimitVerdict applyAtomically(String userId, Rule rule) {
+
+        return toVerdict(stateManager.execute(
+                SCRIPT,
+                userId,
+                rule.getComponent(),
+                rule.getLimitCount(),
+                rule.getWindowInSeconds()
+        ));
     }
 
     @Override

@@ -4,9 +4,19 @@ package com.nihar.nihar.algorithm;
 import com.nihar.nihar.entity.*;
 import com.nihar.nihar.managers.*;
 import com.nihar.nihar.interfaces.*;
+import com.nihar.nihar.model.RateLimitVerdict;
+
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.script.RedisScript;
+
+import java.util.List;
 
 /*Concept: Allow at most N requests within a fixed time interval. */
 public class FixedWindow extends RateLimitingAlgorithms {
+
+    /** Atomic Redis-side counterpart of {@link #checkLimit}. */
+    private static final RedisScript<List> SCRIPT = RedisScript.of(
+            new ClassPathResource("scripts/fixed_window.lua"), List.class);
 
     public FixedWindow(
             RuleManager ruleManager,
@@ -14,6 +24,18 @@ public class FixedWindow extends RateLimitingAlgorithms {
             RateLimitStateManager stateManager) {
 
         super(ruleManager, userManager, stateManager);
+    }
+
+    @Override
+    protected RateLimitVerdict applyAtomically(String userId, Rule rule) {
+
+        return toVerdict(stateManager.execute(
+                SCRIPT,
+                userId,
+                rule.getComponent(),
+                rule.getLimitCount(),
+                rule.getWindowInSeconds()
+        ));
     }
 
     @Override
